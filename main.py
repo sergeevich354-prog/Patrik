@@ -22,7 +22,7 @@ cyberpunk_css = """
 st.markdown(cyberpunk_css, unsafe_allow_html=True)
 
 # 2. ІНІЦІАЛІЗАЦІЯ GEMINI API
-API_KEY = "AQ.Ab8RN6IHABjkcUUydXVQCtINDSSP439Y3pSsymlDS3YGoaZZUw"
+API_KEY = "GEMINI_KEY"
 genai.configure(api_key=API_KEY)
 
 system_instruction = (
