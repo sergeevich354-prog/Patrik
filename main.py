@@ -21,9 +21,13 @@ cyberpunk_css = """
 """
 st.markdown(cyberpunk_css, unsafe_allow_html=True)
 
-# 2. ІНІЦІАЛІЗАЦІЯ GEMINI API
-API_KEY = "GEMINI_KEY"
-genai.configure(api_key=API_KEY)
+# 2. БЕЗПЕЧНА ІНІЦІАЛІЗАЦІЯ GEMINI API ЧЕРЕЗ НОВИЙ SECRETS ТОКЕН
+try:
+    API_KEY = st.secrets["PATRIK_BRAIN"]
+    genai.configure(api_key=API_KEY)
+except Exception:
+    st.error("🚨 Бро, залий новий API-ключ у Secrets додатка на Streamlit Cloud! Поле PATRIK_BRAIN порожнє.")
+    st.stop()
 
 system_instruction = (
     "Ти — Патрік OS v6.0, досвідчений інженер-напарник, ШІ-бро. "
@@ -68,32 +72,54 @@ if module == "Кібер-Strategist":
 
 elif module == "Візуальний Аудит":
     st.subheader("🖼️ Модуль: Візуальний Аудит")
-    st.write("Завантажуй сюди скріншот сайту, додатка чи інтерфейсу, і я розберу його по поличках.")
+    st.write("Завантажуй сюди скріншот сайту чи інтерфейсу, і я розберу його по пікселях.")
     
-    uploaded_file = st.file_uploader("Завантаж зображення (PNG, JPG, JPEG):", type=["png", "jpg", "jpeg"])
-    
+    uploaded_file = st.file_uploader("Завантаж зображення:", type=["png", "jpg", "jpeg"])
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
         st.image(image, caption="Твій скріншот завантажено, бро", use_column_width=True)
-        
-        audit_prompt = st.text_input("На що звернути особливу увагу? (Або залиш порожнім для загального аудиту):")
+        audit_prompt = st.text_input("На що звернути особливу увагу? (Або залиш порожнім):")
         
         if st.button("Просканувати візуал"):
             with st.spinner("🤖 Патрік сканує пікселі..."):
                 final_prompt = [
-                    "Зроби повний технічний та UX/UI аудит цього зображення. Знайди косяки, баги верстки, проблеми з юзабіліті та дай чіткі інженерні поради, як це покращити.",
+                    "Зроби повний технічний та UX/UI audit цього зображення. Знайди косяки, баги верстки, проблеми з юзабіліті та дай чіткі інженерні поради розробнику.",
                     image
                 ]
                 if audit_prompt:
                     final_prompt.append(f"Особливий фокус користувача на це: {audit_prompt}")
-                
                 response = model.generate_content(final_prompt)
                 st.write(response.text)
 
 elif module == "SMM Автопілот":
     st.subheader("📱 Модуль: SMM Автопілот")
-    st.info("Тут буде генерація контент-планів та вірусних постів.")
+    st.write("Генеруємо вірусний контент та стратегію просування в один клік.")
+    
+    project_desc = st.text_area("Опиши свій проєкт чи товар, бро (для кого пишемо?):")
+    post_type = st.selectbox("Який контент потрібен?", ["Вірусний пост для Instagram/TikTok", "Експертний лонгрід для Telegram", "Контент-план на 7 днів"])
+    tone_style = st.select_slider("Тональність тексту:", options=["Максимально серйозно", "Дружній хайп", "Повний треш і гумор"])
+    
+    if st.button("Згенерувати контент"):
+        if project_desc:
+            prompt = f"Напиши контент для проєкту: '{project_desc}'. Тип контенту: {post_type}. Стиль: {tone_style}. Додай емодзі та відповідні хештеги."
+            with st.spinner("🤖 Патрік пише тексти..."):
+                response = model.generate_content(prompt)
+                st.write(response.text)
+        else:
+            st.warning("Вкажи опис проєкту, бро.")
 
 elif module == "Кухня Коду":
     st.subheader("⚡ Модуль: Кухня Коду")
-    st.info("Тут буде рев'ю твого коду та пошук багів.")
+    st.write("Твій особистий ШІ-рев'юер коду. Знайду баги, оптимізую рефакторинг.")
+    
+    code_input = st.text_area("Встав свій шматок коду сюди, бро (Python, JS, HTML тощо):", height=200)
+    task_type = st.radio("Що зробити з кодом?", ["Знайти баги та косяки", "Зробити красивий рефакторинг/оптимізацію", "Пояснити як це працює простими словами"])
+    
+    if st.button("Шеф-кухар, до столу!"):
+        if code_input:
+            prompt = f"Проаналізуй цей код. Завдання: {task_type}. Ось код:\n\n{code_input}"
+            with st.spinner("🤖 Патрік шліфує код..."):
+                response = model.generate_content(prompt)
+                st.write(response.text)
+        else:
+            st.warning("Код порожній, бро. Закинь хоч щось!")
