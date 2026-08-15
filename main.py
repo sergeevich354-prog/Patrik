@@ -1,142 +1,102 @@
 import streamlit as st
-from google import genai
-from google.genai import types
-from PIL import Image
+import requests
+import os
 
-# 1. КОНФІГУРАЦІЯ СТОРІНКИ ТА КІБЕРПАНК СТИЛІЗАЦІЯ
-st.set_page_config(
-    page_title="Патрік OS v6.0",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Налаштування сторінки кібер-дашборду
+st.set_page_config(page_title="AI Super-Agent Dashboard", page_icon="🧠", layout="wide")
 
-cyberpunk_css = """
-<style>
-    .stApp { background-color: #0b031a; color: #e0d5f5; }
-    .sidebar .sidebar-content { background-color: #14072d; }
-    h1, h2, h3 { color: #b388ff !important; text-shadow: 0 0 10px #7c4dff; font-family: 'Courier New', Courier, monospace; }
-    .stButton>button { background-color: #7c4dff !important; color: white !important; border: 1px solid #b388ff !important; box-shadow: 0 0 8px #7c4dff; transition: 0.3s; }
-    .stButton>button:hover { background-color: #b388ff !important; box-shadow: 0 0 15px #b388ff; }
-</style>
-"""
-st.markdown(cyberpunk_css, unsafe_allow_html=True)
+# Стилізація під темно-фіолетовий кіберпанк
+st.markdown("""
+    <style>
+    .main { background-color: #0b0914; color: #e0def4; }
+    .stButton>button { background-color: #4c1d95; color: white; border-radius: 8px; width: 100%; border: none; height: 50px; font-size: 16px; }
+    .stButton>button:hover { background-color: #6d28d9; }
+    div[data-testid="stExpander"] { background-color: #141026; border: 1px solid #4c1d95; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# 2. БЕЗПЕЧНА ІНІЦІАЛІЗАЦІЯ НОВОГО GEMINI CLIENT ЧЕРЕЗ SECRETS
-try:
-    API_KEY = st.secrets["PATRIK_BRAIN"]
-    # Використовуємо новий SDK клієнт, сумісний з ключами AQ.
-    client = genai.Client(api_key=API_KEY)
-except Exception:
-    st.error("🚨 Бро, перевірь сховище Secrets у Streamlit Cloud! Поле PATRIK_BRAIN має містити твій AQ. ключ.")
-    st.stop()
+# Отримуємо ключ OpenRouter
+API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
-# Налаштування системного промпту
-system_instruction = (
-    "Ти — Патрік OS v6.0, досвідчений інженер-напарник, ШІ-бро. "
-    "Спілкуєшся просто, з дружнім гумором, без зайвої офіціози та води. "
-    "Коротко, по ділу, підтримуєш розробника. Використовуй технічний сленг, де це доречно."
-)
+st.sidebar.title("🤖 Патрік OS v1.0")
+mode = st.sidebar.selectbox("Обери модуль агента:", [
+    "🧠 Кібер-Strategist", 
+    "👁️ Візуальний Аудит", 
+    "📱 SMM Автопілот", 
+    "💻 Кухня Коду"
+])
 
-config = types.GenerateContentConfig(
-    system_instruction=system_instruction,
-    temperature=0.7
-)
+st.title(f"🤖 Модуль: {mode}")
 
-# 3. ІНТЕРФЕЙС ТА НАВІГАЦІЯ
-st.title("🤖 ПАТРІК OS v6.0 // СИСТЕМА ЗАПУЩЕНА")
+# Функція для запиту до OpenRouter
+def ask_ai(system_prompt, user_query):
+    if not API_KEY:
+        return "Помилка: OPENROUTER_API_KEY не знайдено в налаштуваннях сервісу!"
 
-module = st.sidebar.radio(
-    "🤖 ОВЕРЛЕЙ МОДУЛІВ:",
-    ["Кібер-Strategist", "Візуальний Аудит", "SMM Автопілот", "Кухня Коду"]
-)
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-st.sidebar.markdown("---")
-st.sidebar.success("Мізки: Gemini 1.5 Flash (Новий SDK)")
-st.sidebar.info("Статус: Ланцюжок GitHub -> Streamlit Cloud")
+    payload = {
+        "model": "openrouter/auto",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_query}
+        ]
+    }
 
-# 4. ЛОГІКА РОБОТИ МОДУЛІВ
-if module == "Кібер-Strategist":
-    st.subheader("🎯 Модуль: Кібер-Strategist")
-    mode = st.checkbox("🔥 Увімкнути режим Devil's Advocate (Жорстка критика)")
-    
-    user_input = st.text_area("Яку бізнес-ідею або фічу аналізуємо, бро?")
-    if st.button("Запустити аналіз"):
-        if user_input:
-            prompt = user_input
-            if mode:
-                prompt += " (Розкритикуй цю ідею в пух і прах як Devil's Advocate, знайди всі слабкі місця)."
-            
-            with st.spinner("🤖 Патрік думає..."):
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=prompt,
-                    config=config
-                )
-                st.write(response.text)
+    try:
+        response = requests.post("https://openrouter.ai", headers=headers, json=payload)
+        if response.status_code == 200:
+            return response.json()['choices'][0]['message']['content']
         else:
-            st.warning("Введи щось, бро, немає контексту для аналізу.")
+            return f"OpenRouter повернув помилку {response.status_code}: {response.text}"
+    except Exception as e:
+        return f"Помилка з'єднання: {str(e)}"
 
-elif module == "Візуальний Аудит":
-    st.subheader("🖼️ Модуль: Візуальний Аудит")
-    st.write("Завантажуй сюди скріншот сайту чи інтерфейсу, і я розберу його по пікселях.")
-    
-    uploaded_file = st.file_uploader("Завантаж зображення:", type=["png", "jpg", "jpeg"])
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Твій скріншот завантажено, бро", use_column_width=True)
-        audit_prompt = st.text_input("На що звернути особливу увагу? (Або залиш порожнім):")
-        
-        if st.button("Просканувати візуал"):
-            with st.spinner("🤖 Патрік сканує пікселі..."):
-                contents_list = [image, "Зроби повний технічний та UX/UI аудит цього зображення. Знайди косяки, баги верстки, проблеми з юзабіліті та дай чіткі інженерні поради розробнику."]
-                if audit_prompt:
-                    contents_list.append(f"Особливий фокус користувача на це: {audit_prompt}")
-                
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=contents_list,
-                    config=config
-                )
-                st.write(response.text)
+# 1. КІБЕР-СТРАТЕГ
+if mode == "🧠 Кібер-Strategist":
+    user_query = st.text_area("Введіть твою бізнес-ідею або питання для аналізу аналітики:", placeholder="Наприклад: Який товар запустить в Україні цієї осені?")
+    devils_advocate = st.checkbox("Активувати режим Devil's Advocate (Жорсткий стрес-тест ризиків)", value=True)
 
-elif module == "SMM Автопілот":
-    st.subheader("📱 Модуль: SMM Автопілот")
-    st.write("Генеруємо вірусний контент та стратегію просування в один клік.")
-    
-    project_desc = st.text_area("Опиши свій проєкт чи товар, бро (для кого пишемо?):")
-    post_type = st.selectbox("Який контент потрібен?", ["Вірусний пост для Instagram/TikTok", "Експертний лонгрід для Telegram", "Контент-план на 7 днів"])
-    tone_style = st.select_slider("Тональність тексту:", options=["Максимально серйозно", "Дружній хайп", "Повний треш і гумор"])
-    
-    if st.button("Згенерувати контент"):
-        if project_desc:
-            prompt = f"Напиши контент для проєкту: '{project_desc}'. Тип контенту: {post_type}. Стиль: {tone_style}. Додай емодзі та відповідні хештеги."
-            with st.spinner("🤖 Патрік пише тексти..."):
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=prompt,
-                    config=config
-                )
-                st.write(response.text)
-        else:
-            st.warning("Вкажи опис проєкту, бро.")
+    if st.button("⚡ Запустити стратегічне ядро"):
+        sys_prompt = "Ти — видатний бізнес-аналітик. Відповідай чітко, структуровано, українською мовою."
+        if devils_advocate:
+            sys_prompt += " Увімкни режим Devil's Advocate: знайди приховані загрози, касові розриви та причини чому ідея провалиться, і як їм запобігти."
 
-elif module == "Кухня Коду":
-    st.subheader("⚡ Модуль: Кухня Коду")
-    st.write("Твій особистий ШІ-рев'юер коду. Знайду баги, оптимізую рефакторинг.")
-    
-    code_input = st.text_area("Встав свій шматок коду сюди, бро (Python, JS, HTML тощо):", height=200)
-    task_type = st.radio("Що сделать з кодом?", ["Знайти баги та косяки", "Зробити красивий рефакторинг/оптимізацію", "Пояснити як це працює простими словами"])
-    
-    if st.button("Шеф-кухар, до столу!"):
-        if code_input:
-            prompt = f"Проаналізуй цей код. Завдання: {task_type}. Ось код:\n\n{code_input}"
-            with st.spinner("🤖 Патрік шліфує код..."):
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=prompt,
-                    config=config
-                )
-                st.write(response.text)
-        else:
-            st.warning("Код порожній, бро. Закинь хоч щось!")
+        with st.spinner("Обробка сигналу..."):
+            st.info("Підготовка контексту // openrouter/auto")
+            res = ask_ai(sys_prompt, user_query)
+            st.subheader("РЕЗУЛЬТАТ АНАЛІЗУ")
+            st.markdown(res)
+
+# 2. ВІЗУАЛЬНИЙ АУДИТ
+elif mode == "👁️ Візуальний Аудит":
+    st.info("Примітка: Локальний текстовий опис документів та фото.")
+    doc_desc = st.text_area("Опишіть, який документ потрібно згенерувати або яку проблему на фото проаналізувати:")
+
+    if st.button("📝 Згенерувати документ / Аналіз"):
+        with st.spinner("Синтез тексту..."):
+            res = ask_ai("Ти — юридичний та технічний асистент. Створюй повноцінні документи чи звіти за описом українською мовою.", doc_desc)
+            st.markdown(res)
+
+# 3. SMM АВТОПІЛОТ
+elif mode == "📱 SMM Автопілот":
+    niche = st.text_input("Ніша бізнесу (наприклад: Налаштування Google Maps, Продаж PowerStation):")
+    city = st.text_input("Місто (наприклад: Охтирка, Миколаїв):")
+
+    if st.button("🚀 Створити SMM-Стратегію"):
+        query = f"Створи контент-план та скрипти продажів для ніші {niche} у місті {city}."
+        with st.spinner("Генерація контенту..."):
+            res = ask_ai("Ти — топ SMM-маркетолог. Пиши вірусні тексти, гачки, хештеги та скрипти для Direct/WhatsApp українською.", query)
+            st.markdown(res)
+
+# 4. КУХНЯ КОДУ
+elif mode == "💻 Кухня Коду":
+    code_task = st.text_area("Який сайт чи скрипт потрібно написати?", placeholder="Наприклад: Односторінковий сайт для продажу зарядних станцій на HTML/CSS з темно-фіолетовою темою.")
+
+    if st.button("🛠️ Згенерувати чистий код"):
+        with st.spinner("Кодування..."):
+            res = ask_ai("Ти — Senior Full-Stack Engineer. Пиши виключно чистий, робочий код без зайвих розмов. Якщо це HTML, роби дизайн адаптивним для телефонів.", code_task)
+            st.code(res)
